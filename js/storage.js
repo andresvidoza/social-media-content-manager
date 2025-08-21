@@ -8,8 +8,11 @@ class LocalStorageManager {
     }
 
     initializeStorage() {
+        console.log('Initializing localStorage...');
+        
         // Initialize with sample data if storage is empty
         if (!localStorage.getItem(this.storageKey)) {
+            console.log('No existing data, creating sample data...');
             const sampleData = [
                 {
                     id: this.generateId(),
@@ -91,6 +94,10 @@ class LocalStorageManager {
             ];
             
             localStorage.setItem(this.storageKey, JSON.stringify(sampleData));
+            console.log('Sample data created:', sampleData.length, 'items');
+        } else {
+            const existingData = JSON.parse(localStorage.getItem(this.storageKey));
+            console.log('Existing data found:', existingData.length, 'items');
         }
     }
 
@@ -100,13 +107,18 @@ class LocalStorageManager {
 
     // Simulate API endpoints
     async get(endpoint, params = {}) {
+        console.log('Storage GET request:', endpoint, params);
         const data = JSON.parse(localStorage.getItem(this.storageKey)) || [];
+        console.log('Retrieved data from storage:', data.length, 'items');
         
-        if (endpoint.includes('/')) {
+        // Check if this is a single item request (has ID after tables/content/)
+        const parts = endpoint.split('/');
+        if (parts.length > 2 && parts[2]) {
             // Get single item by ID
-            const id = endpoint.split('/').pop();
+            const id = parts[2];
             const item = data.find(item => item.id === id);
-            return { ok: true, json: async () => item };
+            console.log('Single item request for ID:', id, 'Found:', !!item);
+            return { ok: true, json: () => Promise.resolve(item) };
         } else {
             // Get all items with filtering and sorting
             let filteredData = [...data];
@@ -141,14 +153,18 @@ class LocalStorageManager {
             const startIndex = (page - 1) * limit;
             const paginatedData = filteredData.slice(startIndex, startIndex + limit);
             
+            const result = {
+                data: paginatedData,
+                total: filteredData.length,
+                page,
+                limit
+            };
+            
+            console.log('Returning data:', result);
+            
             return {
                 ok: true,
-                json: async () => ({
-                    data: paginatedData,
-                    total: filteredData.length,
-                    page,
-                    limit
-                })
+                json: () => Promise.resolve(result)
             };
         }
     }
@@ -165,7 +181,7 @@ class LocalStorageManager {
         data.push(newItem);
         localStorage.setItem(this.storageKey, JSON.stringify(data));
         
-        return { ok: true, json: async () => newItem };
+        return { ok: true, json: () => Promise.resolve(newItem) };
     }
 
     async put(endpoint, body) {
@@ -180,7 +196,7 @@ class LocalStorageManager {
                 updated_at: Date.now()
             };
             localStorage.setItem(this.storageKey, JSON.stringify(data));
-            return { ok: true, json: async () => data[index] };
+            return { ok: true, json: () => Promise.resolve(data[index]) };
         }
         
         return { ok: false };
@@ -235,7 +251,11 @@ const originalFetch = window.fetch;
 
 // Override fetch to use localStorage for tables/* endpoints
 window.fetch = function(url, options = {}) {
+    console.log('Fetch called with:', url, options);
+    
     if (url.startsWith('tables/content')) {
+        console.log('Using localStorage for:', url);
+        
         const method = options.method || 'GET';
         const body = options.body ? JSON.parse(options.body) : null;
         
@@ -249,18 +269,34 @@ window.fetch = function(url, options = {}) {
             });
         }
         
-        switch (method) {
-            case 'GET':
-                return storageManager.get(endpoint, params);
-            case 'POST':
-                return storageManager.post(endpoint, body);
-            case 'PUT':
-                return storageManager.put(endpoint, body);
-            case 'DELETE':
-                return storageManager.delete(endpoint);
-            default:
-                return originalFetch(url, options);
-        }
+        // Return a Promise that resolves to the storage result
+        return new Promise(async (resolve) => {
+            try {
+                let result;
+                switch (method) {
+                    case 'GET':
+                        result = await storageManager.get(endpoint, params);
+                        break;
+                    case 'POST':
+                        result = await storageManager.post(endpoint, body);
+                        break;
+                    case 'PUT':
+                        result = await storageManager.put(endpoint, body);
+                        break;
+                    case 'DELETE':
+                        result = await storageManager.delete(endpoint);
+                        break;
+                    default:
+                        result = await originalFetch(url, options);
+                }
+                
+                console.log('Storage result:', result);
+                resolve(result);
+            } catch (error) {
+                console.error('Storage error:', error);
+                resolve({ ok: false, error });
+            }
+        });
     }
     
     // Use original fetch for other requests

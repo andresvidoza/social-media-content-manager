@@ -23,20 +23,31 @@ class ContentManager {
     }
 
     bindEvents() {
+        // Helper function to safely add event listeners
+        const safeAddListener = (id, event, handler) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener(event, handler);
+            } else {
+                console.warn(`Element with id '${id}' not found`);
+            }
+        };
+
         // Modal events
-        document.getElementById('addContentBtn').addEventListener('click', () => this.openModal());
-        document.getElementById('emptyStateBtn').addEventListener('click', () => this.openModal());
-        document.getElementById('closeModal').addEventListener('click', () => this.closeModal());
-        document.getElementById('cancelBtn').addEventListener('click', () => this.closeModal());
-        document.getElementById('contentForm').addEventListener('submit', (e) => this.saveContent(e));
+        safeAddListener('addContentBtn', 'click', () => this.openModal());
+        safeAddListener('emptyStateBtn', 'click', () => this.openModal());
+        safeAddListener('closeModal', 'click', () => this.closeModal());
+        safeAddListener('cancelBtn', 'click', () => this.closeModal());
+        safeAddListener('contentForm', 'submit', (e) => this.saveContent(e));
 
-        // View toggle events
-        document.getElementById('gridViewBtn').addEventListener('click', () => this.switchView('grid'));
-        document.getElementById('listViewBtn').addEventListener('click', () => this.switchView('list'));
-        document.getElementById('calendarViewBtn').addEventListener('click', () => this.switchView('calendar'));
+        // View toggle events (optional - may not exist in Pinterest design)
+        safeAddListener('gridViewBtn', 'click', () => this.switchView('grid'));
+        safeAddListener('listViewBtn', 'click', () => this.switchView('list'));
+        safeAddListener('calendarViewBtn', 'click', () => this.switchView('calendar'));
+        safeAddListener('viewToggle', 'click', () => this.toggleView());
 
-        // Pinterest-style filters are handled by the pill click handlers above
-        document.getElementById('sortBy').addEventListener('change', (e) => this.updateSort(e.target.value));
+        // Sort functionality
+        safeAddListener('sortBy', 'change', (e) => this.updateSort(e.target.value));
 
         // Pinterest-style filter pills
         document.querySelectorAll('.filter-pill').forEach(pill => {
@@ -44,7 +55,7 @@ class ContentManager {
         });
 
         // Main search functionality
-        document.getElementById('mainSearchInput').addEventListener('input', (e) => this.updateFilter('search', e.target.value));
+        safeAddListener('mainSearchInput', 'input', (e) => this.updateFilter('search', e.target.value));
 
         // Platform radio buttons for modal
         document.querySelectorAll('input[name="platform_radio"]').forEach(radio => {
@@ -52,12 +63,12 @@ class ContentManager {
         });
 
         // Twitter-specific events
-        document.getElementById('platform').addEventListener('change', (e) => this.handlePlatformChange(e.target.value));
-        document.getElementById('content_type').addEventListener('change', (e) => this.handleContentTypeChange(e.target.value));
-        document.getElementById('caption').addEventListener('input', (e) => this.updateCharacterCount(e.target.value));
+        safeAddListener('platform', 'change', (e) => this.handlePlatformChange(e.target.value));
+        safeAddListener('content_type', 'change', (e) => this.handleContentTypeChange(e.target.value));
+        safeAddListener('caption', 'input', (e) => this.updateCharacterCount(e.target.value));
 
         // Close modal when clicking outside
-        document.getElementById('contentModal').addEventListener('click', (e) => {
+        safeAddListener('contentModal', 'click', (e) => {
             if (e.target.id === 'contentModal') {
                 this.closeModal();
             }
@@ -390,15 +401,29 @@ class ContentManager {
             url += `&sort=${this.currentSort}`;
             
             const response = await fetch(url);
+            console.log('Fetch response:', response);
+            
             if (response.ok) {
+                console.log('Response is ok, calling json()...');
+                console.log('JSON function:', response.json);
+                
                 const data = await response.json();
-                this.displayContent(data.data);
+                console.log('JSON result:', data);
+                console.log('Loaded data:', data); // Debug log
+                
+                // Handle both direct array and wrapped response formats
+                const contentArray = data.data || data || [];
+                this.displayContent(contentArray);
             } else {
+                console.error('Response not ok:', response);
                 throw new Error('Failed to load content');
             }
         } catch (error) {
             console.error('Error loading content:', error);
-            this.showNotification('Error loading content. Please refresh the page.', 'error');
+            console.error('Error details:', error.message, error.stack);
+            
+            // Show empty state instead of error for better UX
+            this.displayContent([]);
         }
     }
 
@@ -738,14 +763,23 @@ class ContentManager {
     switchView(viewType) {
         this.currentView = viewType;
         
-        // Update button states
+        // Update button states (if they exist)
         document.querySelectorAll('[id$="ViewBtn"]').forEach(btn => {
             btn.className = 'flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100';
         });
         
-        document.getElementById(`${viewType}ViewBtn`).className = 'flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium bg-purple-100 text-purple-700';
+        const viewBtn = document.getElementById(`${viewType}ViewBtn`);
+        if (viewBtn) {
+            viewBtn.className = 'flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium bg-purple-100 text-purple-700';
+        }
         
         this.loadContent();
+    }
+
+    toggleView() {
+        // Simple toggle between grid and list view for Pinterest-style interface
+        const newView = this.currentView === 'grid' ? 'list' : 'grid';
+        this.switchView(newView);
     }
 
     // Filter Management
@@ -783,7 +817,10 @@ class ContentManager {
             const response = await fetch('tables/content?limit=1000');
             if (response.ok) {
                 const data = await response.json();
-                const content = data.data;
+                console.log('Stats data:', data); // Debug log
+                
+                // Handle both direct array and wrapped response formats
+                const content = data.data || data || [];
                 
                 // Calculate stats
                 const totalContent = content.length;
@@ -797,14 +834,29 @@ class ContentManager {
                     return item.scheduled_date <= oneWeekFromNow && item.scheduled_date >= Date.now();
                 }).length;
                 
-                // Update DOM
-                document.getElementById('totalContent').textContent = totalContent;
-                document.getElementById('scheduledContent').textContent = scheduledContent;
-                document.getElementById('postedContent').textContent = postedContent;
-                document.getElementById('thisWeekContent').textContent = thisWeekContent;
+                // Update DOM safely
+                const updateElement = (id, value) => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.textContent = value;
+                    } else {
+                        console.warn(`Stats element '${id}' not found`);
+                    }
+                };
+                
+                updateElement('totalContent', totalContent);
+                updateElement('scheduledContent', scheduledContent);
+                updateElement('postedContent', postedContent);
+                updateElement('thisWeekContent', thisWeekContent);
             }
         } catch (error) {
             console.error('Error updating stats:', error);
+            // Set default values if stats fail
+            const elements = ['totalContent', 'scheduledContent', 'postedContent', 'thisWeekContent'];
+            elements.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) element.textContent = '0';
+            });
         }
     }
 

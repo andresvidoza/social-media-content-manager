@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Content Manager - Organize Your Social Media</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: #ffffff;
+            margin: 0;
+            padding: 0;
+        }
+        
+        /* Pinterest-style masonry grid */
+        .masonry-grid {
+            columns: 1;
+            column-gap: 16px;
+            padding: 20px;
+        }
+        
+        @media (min-width: 640px) {
+            .masonry-grid { columns: 2; }
+        }
+        
+        @media (min-width: 768px) {
+            .masonry-grid { columns: 3; }
+        }
+        
+        @media (min-width: 1024px) {
+            .masonry-grid { columns: 4; }
+        }
+        
+        @media (min-width: 1280px) {
+            .masonry-grid { columns: 5; }
+        }
+        
+        @media (min-width: 1536px) {
+            .masonry-grid { columns: 6; }
+        }
+        
+        .pin-item {
+            break-inside: avoid;
+            margin-bottom: 16px;
+            background: #ffffff;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .pin-item:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transform: translateY(-1px);
+        }
+        
+        .pin-header {
+            position: relative;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px;
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .pin-overlay {
+            position: absolute;
+            top: 0;
+            right: 0;
+            left: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0);
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+        }
+        
+        .pin-item:hover .pin-overlay {
+            background: rgba(0, 0, 0, 0.4);
+            opacity: 1;
+        }
+        
+        .pin-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .pin-action-btn {
+            background: #e60023;
+            color: white;
+            border: none;
+            border-radius: 24px;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .pin-action-btn:hover {
+            background: #ad081b;
+        }
+        
+        .pin-action-btn.secondary {
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+        }
+        
+        .pin-action-btn.secondary:hover {
+            background: white;
+        }
+        
+        .pin-content {
+            padding: 16px;
+        }
+        
+        .pin-title {
+            font-weight: 600;
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 8px;
+            line-height: 1.2;
+        }
+        
+        .pin-description {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.4;
+            margin-bottom: 12px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        .pin-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .pin-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+        
+        .pin-tag {
+            background: #f1f1f1;
+            color: #333;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        /* Platform-specific gradients */
+        .platform-tiktok { background: linear-gradient(135deg, #000000 0%, #333333 100%); }
+        .platform-instagram { background: linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%); }
+        .platform-twitter { background: linear-gradient(135deg, #1da1f2 0%, #0084b4 100%); }
+        .platform-tiktok\+instagram { background: linear-gradient(135deg, #000000 0%, #833ab4 50%, #fd1d1d 100%); }
+        .platform-tiktok\+twitter { background: linear-gradient(135deg, #000000 0%, #1da1f2 100%); }
+        .platform-instagram\+twitter { background: linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #1da1f2 100%); }
+        .platform-all { background: linear-gradient(135deg, #000000 0%, #833ab4 25%, #fd1d1d 50%, #1da1f2 75%, #fcb045 100%); }
+        
+        /* Status colors */
+        .status-draft { background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); }
+        .status-scheduled { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+        .status-posted { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+        .status-archived { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+        
+        /* Pinterest-style header */
+        .pinterest-header {
+            background: white;
+            box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        
+        .search-bar {
+            background: #f1f1f1;
+            border: none;
+            border-radius: 24px;
+            padding: 12px 20px;
+            font-size: 16px;
+            width: 100%;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+        
+        .search-bar:focus {
+            background: #e1e1e1;
+            box-shadow: 0 0 0 3px rgba(230, 0, 35, 0.1);
+        }
+        
+        .pinterest-btn {
+            background: #e60023;
+            color: white;
+            border: none;
+            border-radius: 24px;
+            padding: 12px 24px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 16px;
+        }
+        
+        .pinterest-btn:hover {
+            background: #ad081b;
+        }
+        
+        .pinterest-btn.secondary {
+            background: #f1f1f1;
+            color: #333;
+        }
+        
+        .pinterest-btn.secondary:hover {
+            background: #e1e1e1;
+        }
+        
+        .filter-pill {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 24px;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        
+        .filter-pill:hover {
+            background: #f8f8f8;
+        }
+        
+        .filter-pill.active {
+            background: #333;
+            color: white;
+            border-color: #333;
+        }
+        
+        /* Modal Pinterest style */
+        .pinterest-modal {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        .character-counter { font-size: 0.75rem; color: #6B7280; }
+        .character-counter.warning { color: #F59E0B; }
+        .character-counter.error { color: #EF4444; }
+        
+        /* Loading state */
+        .loading-pin {
+            background: #f8f8f8;
+            border-radius: 16px;
+            margin-bottom: 16px;
+            break-inside: avoid;
+        }
+        
+        .loading-header {
+            background: #e5e5e5;
+            height: 120px;
+            border-radius: 16px 16px 0 0;
+        }
+        
+        .loading-content {
+            padding: 16px;
+        }
+        
+        .loading-line {
+            background: #e5e5e5;
+            height: 12px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+        
+        .loading-line.short {
+            width: 60%;
+        }
+        
+        .loading-line.medium {
+            width: 80%;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Pinterest-style Header -->
+    <header class="pinterest-header">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center h-20 gap-4">
+                <!-- Logo -->
+                <div class="flex items-center flex-shrink-0">
+                    <div class="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center mr-4">
+                        <i class="fas fa-video text-white text-xl"></i>
+                    </div>
+                    <h1 class="text-xl font-bold text-gray-900 hidden sm:block">Content Manager</h1>
+                </div>
+                
+                <!-- Navigation Pills -->
+                <div class="hidden md:flex items-center space-x-4 flex-shrink-0">
+                    <button id="homeBtn" class="pinterest-btn secondary">
+                        <i class="fas fa-home mr-2"></i>Home
+                    </button>
+                    <button id="exploreBtn" class="pinterest-btn secondary">
+                        <i class="fas fa-compass mr-2"></i>Explore
+                    </button>
+                </div>
+                
+                <!-- Search Bar -->
+                <div class="flex-1 max-w-2xl mx-4">
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" id="mainSearchInput" class="search-bar pl-12" placeholder="Search your content ideas...">
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex items-center space-x-3 flex-shrink-0">
+                    <button id="notificationsBtn" class="pinterest-btn secondary p-3">
+                        <i class="fas fa-bell"></i>
+                    </button>
+                    <button id="messagesBtn" class="pinterest-btn secondary p-3">
+                        <i class="fas fa-comment"></i>
+                    </button>
+                    <button id="profileBtn" class="pinterest-btn secondary p-3">
+                        <i class="fas fa-user"></i>
+                    </button>
+                    <button id="addContentBtn" class="pinterest-btn">
+                        <i class="fas fa-plus mr-2"></i>Create
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="min-h-screen bg-white">
+        <!-- Pinterest-style Filter Pills -->
+        <div class="sticky top-20 bg-white z-40 border-b border-gray-100">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                <div class="flex items-center space-x-3 overflow-x-auto pb-2">
+                    <button id="filterAll" class="filter-pill active" data-filter="">All</button>
+                    <button id="filterDraft" class="filter-pill" data-filter="Draft">
+                        <i class="fas fa-edit mr-2"></i>Drafts
+                    </button>
+                    <button id="filterScheduled" class="filter-pill" data-filter="Scheduled">
+                        <i class="fas fa-clock mr-2"></i>Scheduled
+                    </button>
+                    <button id="filterPosted" class="filter-pill" data-filter="Posted">
+                        <i class="fas fa-check-circle mr-2"></i>Posted
+                    </button>
+                    <button id="filterTikTok" class="filter-pill" data-filter="TikTok">
+                        <i class="fab fa-tiktok mr-2"></i>TikTok
+                    </button>
+                    <button id="filterInstagram" class="filter-pill" data-filter="Instagram">
+                        <i class="fab fa-instagram mr-2"></i>Instagram
+                    </button>
+                    <button id="filterTwitter" class="filter-pill" data-filter="Twitter">
+                        <i class="fab fa-twitter mr-2"></i>Twitter
+                    </button>
+                    <button id="filterReels" class="filter-pill" data-filter="Reel">
+                        <i class="fas fa-video mr-2"></i>Reels
+                    </button>
+                    <button id="filterPosts" class="filter-pill" data-filter="Post">
+                        <i class="fas fa-image mr-2"></i>Posts
+                    </button>
+                    <button id="filterTweets" class="filter-pill" data-filter="Tweet">
+                        <i class="fas fa-comment mr-2"></i>Tweets
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats Bar -->
+        <div class="bg-gray-50 border-b border-gray-100">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+                <div class="flex items-center justify-between text-sm text-gray-600">
+                    <div class="flex items-center space-x-6">
+                        <span><strong id="totalContent">0</strong> content pieces</span>
+                        <span><strong id="scheduledContent">0</strong> scheduled</span>
+                        <span><strong id="postedContent">0</strong> posted</span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <select id="sortBy" class="bg-white border border-gray-300 rounded-lg px-3 py-1 text-sm">
+                            <option value="scheduled_date">Recently added</option>
+                            <option value="created_at">Created date</option>
+                            <option value="title">Alphabetical</option>
+                            <option value="status">Status</option>
+                        </select>
+                        <button id="viewToggle" class="pinterest-btn secondary text-sm px-3 py-1">
+                            <i class="fas fa-th mr-2"></i>View
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pinterest-style Masonry Grid -->
+        <div class="max-w-7xl mx-auto">
+            <div id="contentContainer">
+                <!-- Masonry Grid -->
+                <div id="gridView" class="masonry-grid">
+                    <!-- Content pins will be inserted here -->
+                </div>
+
+                <!-- List View (Alternative) -->
+                <div id="listView" class="hidden max-w-4xl mx-auto px-4 py-8">
+                    <!-- List items will be inserted here -->
+                </div>
+
+                <!-- Calendar View -->
+                <div id="calendarView" class="hidden max-w-6xl mx-auto px-4 py-8">
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <h3 class="text-xl font-semibold mb-4">Content Calendar</h3>
+                        <p class="text-gray-600">Calendar functionality will be enhanced in future updates.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="text-center py-20 hidden">
+                <div class="max-w-md mx-auto">
+                    <div class="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <i class="fas fa-lightbulb text-3xl text-gray-400"></i>
+                    </div>
+                    <h3 class="text-2xl font-semibold text-gray-900 mb-3">Start creating content</h3>
+                    <p class="text-gray-500 mb-8">Organize all your social media content in one beautiful place</p>
+                    <button id="emptyStateBtn" class="pinterest-btn text-lg px-8 py-3">
+                        <i class="fas fa-plus mr-2"></i>Create your first pin
+                    </button>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="masonry-grid hidden">
+                <!-- Loading pins -->
+                <div class="loading-pin">
+                    <div class="loading-header"></div>
+                    <div class="loading-content">
+                        <div class="loading-line"></div>
+                        <div class="loading-line medium"></div>
+                        <div class="loading-line short"></div>
+                    </div>
+                </div>
+                <div class="loading-pin">
+                    <div class="loading-header"></div>
+                    <div class="loading-content">
+                        <div class="loading-line"></div>
+                        <div class="loading-line short"></div>
+                    </div>
+                </div>
+                <div class="loading-pin">
+                    <div class="loading-header"></div>
+                    <div class="loading-content">
+                        <div class="loading-line medium"></div>
+                        <div class="loading-line"></div>
+                        <div class="loading-line short"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Pinterest-style Modal -->
+    <div id="contentModal" class="pinterest-modal fixed inset-0 bg-gray-600 bg-opacity-70 hidden flex items-center justify-center z-50">
+        <div class="modal-content max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <!-- Modal Header -->
+            <div class="bg-white px-6 py-4 border-b border-gray-100">
+                <div class="flex items-center justify-between">
+                    <h2 id="modalTitle" class="text-xl font-semibold text-gray-900">Create content pin</h2>
+                    <button id="closeModal" class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors">
+                        <i class="fas fa-times text-gray-600"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Modal Content -->
+            <div class="bg-white overflow-y-auto max-h-[calc(90vh-80px)]">
+                <div class="p-6">
+
+                <form id="contentForm" class="space-y-6">
+                    <input type="hidden" id="contentId">
+                    
+                    <!-- Pin Title -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-900 mb-3">Pin title *</label>
+                        <input type="text" id="title" required class="w-full px-4 py-3 text-lg border border-gray-200 rounded-xl focus:border-red-500 focus:ring-red-500 focus:ring-2 transition-all" placeholder="Add a title that describes your content">
+                    </div>
+                    
+                    <!-- Platform Selection -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-900 mb-3">Where do you want to post? *</label>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="platform_radio" value="TikTok" class="sr-only peer">
+                                <div class="border-2 border-gray-200 rounded-xl p-4 text-center peer-checked:border-red-500 peer-checked:bg-red-50 transition-all">
+                                    <i class="fab fa-tiktok text-2xl mb-2"></i>
+                                    <div class="font-medium">TikTok</div>
+                                </div>
+                            </label>
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="platform_radio" value="Instagram" class="sr-only peer">
+                                <div class="border-2 border-gray-200 rounded-xl p-4 text-center peer-checked:border-red-500 peer-checked:bg-red-50 transition-all">
+                                    <i class="fab fa-instagram text-2xl mb-2"></i>
+                                    <div class="font-medium">Instagram</div>
+                                </div>
+                            </label>
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="platform_radio" value="Twitter" class="sr-only peer">
+                                <div class="border-2 border-gray-200 rounded-xl p-4 text-center peer-checked:border-red-500 peer-checked:bg-red-50 transition-all">
+                                    <i class="fab fa-twitter text-2xl mb-2"></i>
+                                    <div class="font-medium">Twitter</div>
+                                </div>
+                            </label>
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="platform_radio" value="TikTok + Instagram" class="sr-only peer">
+                                <div class="border-2 border-gray-200 rounded-xl p-4 text-center peer-checked:border-red-500 peer-checked:bg-red-50 transition-all">
+                                    <div class="flex justify-center space-x-1 text-lg mb-2">
+                                        <i class="fab fa-tiktok"></i>
+                                        <i class="fab fa-instagram"></i>
+                                    </div>
+                                    <div class="font-medium text-sm">TikTok + IG</div>
+                                </div>
+                            </label>
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="platform_radio" value="Instagram + Twitter" class="sr-only peer">
+                                <div class="border-2 border-gray-200 rounded-xl p-4 text-center peer-checked:border-red-500 peer-checked:bg-red-50 transition-all">
+                                    <div class="flex justify-center space-x-1 text-lg mb-2">
+                                        <i class="fab fa-instagram"></i>
+                                        <i class="fab fa-twitter"></i>
+                                    </div>
+                                    <div class="font-medium text-sm">IG + Twitter</div>
+                                </div>
+                            </label>
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="platform_radio" value="All Platforms" class="sr-only peer">
+                                <div class="border-2 border-gray-200 rounded-xl p-4 text-center peer-checked:border-red-500 peer-checked:bg-red-50 transition-all">
+                                    <div class="flex justify-center space-x-1 text-lg mb-2">
+                                        <i class="fas fa-globe"></i>
+                                    </div>
+                                    <div class="font-medium text-sm">All</div>
+                                </div>
+                            </label>
+                        </div>
+                        <select id="platform" class="hidden" required>
+                            <option value="">Select Platform</option>
+                            <option value="TikTok">TikTok</option>
+                            <option value="Instagram">Instagram</option>
+                            <option value="Twitter">Twitter</option>
+                            <option value="TikTok + Instagram">TikTok + Instagram</option>
+                            <option value="TikTok + Twitter">TikTok + Twitter</option>
+                            <option value="Instagram + Twitter">Instagram + Twitter</option>
+                            <option value="All Platforms">All Platforms</option>
+                        </select>
+                    </div>
+
+                    <!-- Content Type & Status -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-900 mb-3">Content type *</label>
+                            <select id="content_type" required class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-red-500 focus:ring-red-500">
+                                <option value="">Select type</option>
+                                <option value="Post">📸 Post</option>
+                                <option value="Story">📱 Story</option>
+                                <option value="Reel">🎥 Reel</option>
+                                <option value="Tweet">🐦 Tweet</option>
+                                <option value="Thread">🧵 Thread</option>
+                                <option value="Space">🎤 Space</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-900 mb-3">Status</label>
+                            <select id="status" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-red-500 focus:ring-red-500">
+                                <option value="Draft">✏️ Draft</option>
+                                <option value="Scheduled">⏰ Scheduled</option>
+                                <option value="Posted">✅ Posted</option>
+                                <option value="Archived">📦 Archived</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-900 mb-3">Tell everyone what your Pin is about</label>
+                        <textarea id="caption" rows="4" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-red-500 focus:ring-red-500 resize-none" placeholder="Explain what people can see in your Pin..."></textarea>
+                        <div id="characterCount" class="character-counter mt-2 hidden">0 characters</div>
+                    </div>
+
+                    <!-- Hashtags -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-900 mb-3">Tags (hashtags)</label>
+                        <input type="text" id="hashtags" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-red-500 focus:ring-red-500" placeholder="#hashtag1, #hashtag2, #hashtag3">
+                        <p class="text-xs text-gray-500 mt-2">Separate tags with commas to help people find your Pin</p>
+                    </div>
+
+                    <!-- Schedule & Priority -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-900 mb-3">Schedule for later</label>
+                            <input type="datetime-local" id="scheduled_date" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-red-500 focus:ring-red-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-900 mb-3">Priority level</label>
+                            <select id="priority" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-red-500 focus:ring-red-500">
+                                <option value="Medium">🟡 Medium</option>
+                                <option value="High">🔴 High</option>
+                                <option value="Low">🟢 Low</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Engagement Goal -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-900 mb-3">What's your goal?</label>
+                        <input type="text" id="engagement_goal" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-red-500 focus:ring-red-500" placeholder="e.g., 10k views, viral reach, brand awareness">
+                    </div>
+
+                    <!-- Twitter-specific fields -->
+                    <div id="twitterFields" class="hidden bg-blue-50 rounded-xl p-4">
+                        <h4 class="font-medium text-gray-900 mb-4">🐦 Twitter Settings</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Character Count</label>
+                                <input type="number" id="character_count" class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50" placeholder="280" readonly>
+                                <p class="text-xs text-gray-500 mt-1">Auto-calculated from description</p>
+                            </div>
+                            <div id="threadLengthField" class="hidden">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Thread Length</label>
+                                <input type="number" id="thread_length" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-blue-500" placeholder="5" min="2" max="25">
+                                <p class="text-xs text-gray-500 mt-1">Number of tweets (2-25)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Notes -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-900 mb-3">Notes for yourself</label>
+                        <textarea id="notes" rows="3" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-red-500 focus:ring-red-500 resize-none" placeholder="Add any reminders or notes..."></textarea>
+                    </div>
+                </form>
+                
+                </div>
+                
+                <!-- Modal Footer -->
+                <div class="bg-gray-50 px-6 py-4 border-t border-gray-100">
+                    <div class="flex justify-between items-center">
+                        <button type="button" id="cancelBtn" class="pinterest-btn secondary">
+                            Cancel
+                        </button>
+                        <button type="submit" form="contentForm" class="pinterest-btn">
+                            <i class="fas fa-save mr-2"></i>Save Pin
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/storage.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
